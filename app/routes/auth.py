@@ -7,7 +7,7 @@ from app.config import settings
 auth_router = APIRouter()
 otp_service = OTPService()
 
-# 🔥 ACTUALIZADO PARA FRONTEND KOTLIN
+# 🔥 COMPATIBLE CON PYDANTIC 1.x
 class SendCodeRequest(BaseModel):
     countryCode: str  # +57
     phoneNumber: str  # 3001234567
