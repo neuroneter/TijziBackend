@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+import httpx
 
 app = FastAPI(title="Tijzi Backend Basic", version="1.0.0")
 
@@ -8,7 +9,7 @@ def read_root():
         "message": "Tijzi Backend is working!", 
         "status": "OK",
         "version": "1.0.0",
-        "endpoints": ["/", "/health", "/test"]
+        "endpoints": ["/", "/health", "/test", "/test-http"]
     }
 
 @app.get("/health")
@@ -34,3 +35,20 @@ def ping_post(data: dict = None):
         "received_data": data,
         "status": "ok"
     }
+
+# 🔥 NUEVO: Test HTTP requests
+@app.get("/test-http")
+async def test_http():
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get("https://httpbin.org/json")
+            return {
+                "status": "HTTP client working",
+                "test_response": response.json(),
+                "httpx_version": httpx.__version__
+            }
+    except Exception as e:
+        return {
+            "status": "HTTP client error",
+            "error": str(e)
+        }
