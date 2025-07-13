@@ -1,8 +1,12 @@
 from fastapi import FastAPI, HTTPException
 import httpx
 from app.services.otp_service import OTPService
+from app.routes.auth import auth_router  # 🔥 NUEVO IMPORT
 
 app = FastAPI(title="Tijzi Backend Basic", version="1.0.0")
+
+# 🔥 INCLUIR ROUTER DE AUTH
+app.include_router(auth_router)
 
 # Instancia global del servicio OTP
 otp_service = OTPService()
@@ -13,9 +17,10 @@ def read_root():
         "message": "Tijzi Backend is working!", 
         "status": "OK",
         "version": "1.0.0",
-        "endpoints": ["/", "/health", "/test", "/test-http", "/test-otp"]
+        "endpoints": ["/", "/health", "/test", "/test-http", "/test-otp", "/auth/send-code", "/auth/verify-code"]
     }
 
+# ... resto de endpoints sin cambios ...
 @app.get("/health")
 def health_check():
     return {
@@ -56,19 +61,18 @@ async def test_http():
             "error": str(e)
         }
 
-# 🔥 NUEVO: Test OTP service
 @app.post("/test-otp")
 def test_otp_service(request: dict):
     """Test del servicio OTP sin WhatsApp"""
     phone_number = request.get("phoneNumber", "+573001234567")
-    action = request.get("action", "generate")  # generate, verify, status
+    action = request.get("action", "generate")
     
     if action == "generate":
         code = otp_service.generate_and_store_code(phone_number)
         return {
             "status": "OTP generated",
             "phone_number": phone_number,
-            "code": code,  # En producción NO devolver el código
+            "code": code,
             "message": "Code generated successfully"
         }
     
