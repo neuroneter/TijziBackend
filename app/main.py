@@ -1,26 +1,36 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from app.routes.auth import auth_router
 
-app = FastAPI(title="Tijzi Auth Backend", version="1.0.0")
+app = FastAPI(title="Tijzi Backend Basic", version="1.0.0")
 
-# 🔥 CORS PARA ANDROID
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # En producción, especifica dominios
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.include_router(auth_router, prefix="/auth")
-
-# 🔥 ENDPOINT DE PRUEBA
 @app.get("/")
 def read_root():
-    return {"message": "Tijzi Backend is running!", "status": "OK"}
+    return {
+        "message": "Tijzi Backend is working!", 
+        "status": "OK",
+        "version": "1.0.0",
+        "endpoints": ["/", "/health", "/test"]
+    }
 
-# 🔥 HEALTH CHECK
 @app.get("/health")
 def health_check():
-    return {"status": "healthy"}
+    return {
+        "status": "healthy", 
+        "service": "tijzi-backend",
+        "version": "1.0.0"
+    }
+
+@app.get("/test")
+def test_endpoint():
+    return {
+        "test": "success", 
+        "backend": "running",
+        "message": "All systems operational"
+    }
+
+@app.post("/ping")
+def ping_post(data: dict = None):
+    return {
+        "message": "POST endpoint working",
+        "received_data": data,
+        "status": "ok"
+    }
