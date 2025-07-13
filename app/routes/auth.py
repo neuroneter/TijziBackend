@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from app.services.otp_service import OTPService
+from app.services.whatsapp_service import whatsapp_service  # 🔥 NUEVO IMPORT
 
 # Router para endpoints de autenticación
 auth_router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -8,7 +9,7 @@ auth_router = APIRouter(prefix="/auth", tags=["authentication"])
 otp_service = OTPService()
 
 @auth_router.post("/send-code")
-def send_code(request: dict):
+async def send_code(request: dict):  # 🔥 CAMBIO: async
     """
     Endpoint que espera el frontend Kotlin
     Body: {"countryCode": "+57", "phoneNumber": "3004051582"}
@@ -29,17 +30,14 @@ def send_code(request: dict):
         # Generar código OTP
         code = otp_service.generate_and_store_code(full_phone_number)
         
-        # 🔥 LOGS PARA DEBUG (como en el backend original)
+        # 🔥 LOGS PARA DEBUG
         print(f"🔥 [DEBUG] Country Code: {country_code}")
         print(f"🔥 [DEBUG] Phone Number: {phone_number}")
         print(f"🔥 [DEBUG] Full Number: {full_phone_number}")
         print(f"🔥 [DEBUG] Generated OTP: {code}")
         
-        # TODO: Aquí iría el envío real a WhatsApp
-        # success = send_whatsapp_message(full_phone_number, code)
-        
-        # Por ahora simulamos éxito
-        success = True
+        # 🔥 NUEVO: Envío real a WhatsApp
+        success = await whatsapp_service.send_otp_message(full_phone_number, code)
         
         if not success:
             print(f"🔥 [ERROR] Failed to send WhatsApp to {full_phone_number}")
