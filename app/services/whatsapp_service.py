@@ -5,9 +5,9 @@ from typing import Optional
 class WhatsAppService:
     def __init__(self):
         # Variables de entorno (configuraremos en Render)
-        self.access_token = os.getenv("ACCESS_TOKEN", "EAARCZANcIBdYBOZCKwQcvHOEw9PPqC08shdcoGvf10t6TjrvxhKmHijsnpMesLFftnTYrGiXQZB9HsyZCOhs0ht20BD1Uceb4k1CoDbXHTZAKwnZBOlhuzGDnS1EUu0NiRVDZB0msdHcfvYprpMQFS9OQsNkeIRn5qK89kJXGIb1bXF7JkmYjTaZCOdDZB82efY8G0yemPMNezY61JdlChOBjZAeEeUUr3Wuy5TsnQzyW2FS3cDbQZD")
-        self.phone_number_id = os.getenv("PHONE_NUMBER_ID", "465399596649912")
-        self.template_name = os.getenv("TEMPLATE_NAME", "otp_login")
+        self.access_token = os.getenv("ACCESS_TOKEN", "")
+        self.phone_number_id = os.getenv("PHONE_NUMBER_ID", "")
+        self.template_name = os.getenv("TEMPLATE_NAME", "")
         
         # URL base de WhatsApp API v19.0
         self.base_url = f"https://graph.facebook.com/v19.0/{self.phone_number_id}/messages"
