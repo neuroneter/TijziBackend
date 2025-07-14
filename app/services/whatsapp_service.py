@@ -14,9 +14,10 @@ async def send_otp_message(self, phone_number: str, otp_code: str) -> bool:
             "messaging_product": "whatsapp",
             "to": phone_number.replace("+", ""),
             "type": "template",
+            "category":"AUTHENTICATION",
             "template": {
                 "name": self.template_name,
-                "language": {"code": "es"},  # 🔥 CAMBIO: ESPAÑOL
+                "language": {"code": "es"}, 
                 "components": [
                     {
                         "type": "body",
@@ -38,6 +39,7 @@ async def send_otp_message(self, phone_number: str, otp_code: str) -> bool:
                 ]
             }
         }
+
         
         print(f"🔥 [WhatsApp] Sending to: {phone_number.replace('+', '')}")
         print(f"🔥 [WhatsApp] Template: {self.template_name}")
