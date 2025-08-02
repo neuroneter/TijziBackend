@@ -1,8 +1,13 @@
 from fastapi import APIRouter, HTTPException
 from app.services.otp_service import OTPService
 from app.services.sms_service import SMSService
+from app.services.telegram_service import TelegramService
 import httpx
 import os
+
+
+# Instancia del servicio Telegram
+telegram_service = TelegramService()
 
 # Router para endpoints de autenticación
 auth_router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -346,4 +351,113 @@ def sms_debug():
             "send": "/auth/send-sms",
             "verify": "/auth/verify-sms"
         }
+    }
+
+@auth_router.post("/send-telegram")
+async def send_telegram_code(request: dict):
+    """
+    Envío OTP vía Telegram
+    Body: {"telegramUser": "@usuario"} o {"telegramUser": "chat_id"}
+    """
+    try:
+        telegram_user = request.get("telegramUser")
+        
+        if not telegram_user:
+            raise HTTPException(
+                status_code=400, 
+                detail="telegramUser is required"
+            )
+        
+        print(f"🔥 [Telegram TEST] Sending to: {telegram_user}")
+        
+        # Generar código OTP usando nuestro sistema
+        code = otp_service.generate_and_store_code(telegram_user)
+        
+        print(f"🔥 [Telegram TEST] Generated OTP: {code}")
+        
+        # Enviar vía Telegram
+        success = await telegram_service.send_otp_telegram(telegram_user, code)
+        
+        if not success:
+            print(f"🔥 [Telegram ERROR] Failed to send message to {telegram_user}")
+            raise HTTPException(
+                status_code=500, 
+                detail="Failed to send Telegram message. Check bot configuration and user interaction."
+            )
+        
+        print(f"🔥 [Telegram SUCCESS] Message sent to {telegram_user}")
+        
+        return {
+            "message": "Telegram message sent successfully",
+            "telegram_user": telegram_user,
+            "method": "Telegram Bot API",
+            "note": "User must have started chat with bot first"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"🔥 [Telegram ERROR] Unexpected error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Telegram error: {str(e)}")
+
+@auth_router.post("/verify-telegram")
+async def verify_telegram_code(request: dict):
+    """
+    Verificación código Telegram
+    Body: {"telegramUser": "@usuario", "otp": "123456"}
+    """
+    try:
+        telegram_user = request.get("telegramUser")
+        otp = request.get("otp")
+        
+        if not telegram_user or not otp:
+            raise HTTPException(
+                status_code=400,
+                detail="telegramUser and otp are required"
+            )
+        
+        print(f"🔥 [Telegram Verify] Checking {otp} for {telegram_user}")
+        
+        # Verificar código usando nuestro sistema OTP
+        if otp_service.verify_code(telegram_user, otp):
+            token = otp_service.generate_token(telegram_user)
+            print(f"🔥 [Telegram SUCCESS] Code verified for {telegram_user}")
+            
+            return {
+                "message": "Code verified successfully",
+                "session_token": token,
+                "user_id": telegram_user,
+                "method": "Telegram Bot"
+            }
+        else:
+            print(f"🔥 [Telegram ERROR] Invalid OTP for {telegram_user}")
+            raise HTTPException(status_code=401, detail="Invalid or expired code")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"🔥 [Telegram ERROR] Unexpected error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Telegram verification error: {str(e)}")
+
+@auth_router.get("/telegram-debug")
+async def telegram_debug():
+    """
+    Debug info para Telegram Bot
+    """
+    debug_info = telegram_service.get_debug_info()
+    bot_info = await telegram_service.get_bot_info()
+    
+    return {
+        "telegram_service": "Telegram Bot API",
+        "configuration": debug_info,
+        "bot_info": bot_info,
+        "status": "✅ Ready" if debug_info["configured"] else "❌ Not configured",
+        "endpoints": {
+            "send": "/auth/send-telegram",
+            "verify": "/auth/verify-telegram"
+        },
+        "requirements": [
+            "User must send /start to bot first",
+            "Bot must have TELEGRAM_BOT_TOKEN configured"
+        ]
     }
