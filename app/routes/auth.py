@@ -1,10 +1,14 @@
 from fastapi import APIRouter, HTTPException
 from app.services.otp_service import OTPService
+from app.services.sms_service import SMSService
 import httpx
 import os
 
 # Router para endpoints de autenticación
 auth_router = APIRouter(prefix="/auth", tags=["authentication"])
+
+# Instancia del servicio SMS
+sms_service = SMSService()
 
 # Instancia del servicio OTP
 otp_service = OTPService()
@@ -221,4 +225,125 @@ def debug_config():
         "phone_number_id": phone_number_id,
         "template_name": template_name,
         "backend_status": "✅ Functional"
+    }
+
+@auth_router.post("/send-sms")
+async def send_sms_code(request: dict):
+    """
+    Envío SMS usando Twilio Verify (genera código automáticamente)
+    Body: {"countryCode": "+57", "phoneNumber": "3004051582"}
+    """
+    try:
+        country_code = request.get("countryCode")
+        phone_number = request.get("phoneNumber")
+        
+        if not country_code or not phone_number:
+            raise HTTPException(
+                status_code=400, 
+                detail="countryCode and phoneNumber are required"
+            )
+        
+        # Combinar código de país + número
+        full_phone_number = country_code + phone_number
+        
+        print(f"🔥 [SMS TEST] Sending Twilio Verify to: {full_phone_number}")
+        
+        # Enviar usando Twilio Verify (ellos generan el código)
+        result = await sms_service.send_verification_code(full_phone_number)
+        
+        if not result["success"]:
+            print(f"🔥 [SMS ERROR] {result.get('error')}")
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Failed to send SMS: {result.get('error')}"
+            )
+        
+        print(f"🔥 [SMS SUCCESS] Verification sent to {full_phone_number}")
+        
+        return {
+            "message": "SMS verification sent successfully",
+            "phone_number": full_phone_number,
+            "method": "Twilio Verify API",
+            "status": result.get("status"),
+            "sid": result.get("sid")
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"🔥 [SMS ERROR] Unexpected error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"SMS error: {str(e)}")
+
+@auth_router.post("/verify-sms")
+async def verify_sms_code(request: dict):
+    """
+    Verificación SMS usando Twilio Verify
+    Body: {"countryCode": "+57", "phoneNumber": "3004051582", "code": "123456"}
+    """
+    try:
+        country_code = request.get("countryCode")
+        phone_number = request.get("phoneNumber")
+        code = request.get("code")
+        
+        if not country_code or not phone_number or not code:
+            raise HTTPException(
+                status_code=400,
+                detail="countryCode, phoneNumber and code are required"
+            )
+        
+        # Combinar código de país + número
+        full_phone_number = country_code + phone_number
+        
+        print(f"🔥 [SMS Verify] Checking {code} for {full_phone_number}")
+        
+        # Verificar usando Twilio Verify
+        result = await sms_service.verify_code(full_phone_number, code)
+        
+        if not result["success"]:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Verification error: {result.get('error')}"
+            )
+        
+        if result["valid"]:
+            # Generar token de sesión (usando nuestro sistema)
+            token = otp_service.generate_token(full_phone_number)
+            
+            print(f"🔥 [SMS SUCCESS] Code verified for {full_phone_number}")
+            
+            return {
+                "message": "Code verified successfully",
+                "session_token": token,
+                "user_id": full_phone_number,
+                "method": "Twilio Verify",
+                "status": result.get("status")
+            }
+        else:
+            print(f"🔥 [SMS ERROR] Invalid code for {full_phone_number}")
+            raise HTTPException(
+                status_code=401, 
+                detail=result.get("error", "Invalid or expired code")
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"🔥 [SMS ERROR] Unexpected error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"SMS verification error: {str(e)}")
+
+@auth_router.get("/sms-debug")
+def sms_debug():
+    """
+    Debug info para SMS/Twilio Verify
+    """
+    debug_info = sms_service.get_debug_info()
+    
+    return {
+        "sms_service": "Twilio Verify API",
+        "configuration": debug_info,
+        "status": "✅ Ready" if debug_info["configured"] else "❌ Not configured",
+        "endpoints": {
+            "send": "/auth/send-sms",
+            "verify": "/auth/verify-sms"
+        }
     }
