@@ -16,7 +16,10 @@ class WhatsAppService:
             print("🚨 [RENDER ERROR] PHONE_NUMBER_ID not found in environment variables")
         
         # 🔥 BASE URL para WhatsApp Cloud API
-        self.base_url = f"https://graph.facebook.com/v19.0/{self.phone_number_id}/messages"
+        if self.phone_number_id:
+            self.base_url = f"https://graph.facebook.com/v19.0/{self.phone_number_id}/messages"
+        else:
+            self.base_url = None
         
         print(f"🔥 [WhatsApp] Initialized with template: {self.template_name}")
         print(f"🔥 [WhatsApp] Phone Number ID: {self.phone_number_id}")
