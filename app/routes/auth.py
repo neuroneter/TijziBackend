@@ -9,31 +9,27 @@ auth_router = APIRouter(prefix="/auth", tags=["authentication"])
 # Instancia del servicio OTP
 otp_service = OTPService()
 
-# REEMPLAZA la función send_whatsapp_otp en app/routes/auth.py
+# REEMPLAZA la función send_whatsapp_otp COMPLETA
 async def send_whatsapp_otp(phone_number: str, otp_code: str) -> bool:
     """
-    Función standalone para enviar OTP vía WhatsApp
-    VERSIÓN SIMPLIFICADA - Sin Copy Code Button
+    Función inteligente que adapta el payload según el template
     """
     try:
         # Obtener credenciales de variables de entorno
         access_token = os.getenv("ACCESS_TOKEN")
         phone_number_id = os.getenv("PHONE_NUMBER_ID")
-        template_name = os.getenv("TEMPLATE_NAME", "otp_login_whatsapp")
+        template_name = os.getenv("TEMPLATE_NAME", "hello_world")
         
+        print(f"🔥 [WhatsApp] Template: {template_name}")
         print(f"🔥 [WhatsApp] Access Token Length: {len(access_token) if access_token else 0}")
         print(f"🔥 [WhatsApp] Phone Number ID: {phone_number_id}")
-        print(f"🔥 [WhatsApp] Template: {template_name}")
         
         if not access_token or not phone_number_id:
             print("🔥 [WhatsApp ERROR] Missing credentials")
-            print(f"🔥 [DEBUG] ACCESS_TOKEN exists: {bool(access_token)}")
-            print(f"🔥 [DEBUG] PHONE_NUMBER_ID exists: {bool(phone_number_id)}")
             return False
         
         # URL base para WhatsApp API
         base_url = f"https://graph.facebook.com/v19.0/{phone_number_id}/messages"
-        
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json"
@@ -42,42 +38,67 @@ async def send_whatsapp_otp(phone_number: str, otp_code: str) -> bool:
         # Limpiar número de teléfono (remover +)
         clean_phone = phone_number.replace("+", "")
         
-        # 🔥 PAYLOAD CORRECTO para template "otp_login" según documentación oficial
-        payload = {
-            "messaging_product": "whatsapp",
-            "to": clean_phone,
-            "type": "template",
-            "template": {
-                "name": template_name,  # "otp_login"
-                "language": {"code": "es"}, 
-                "components": [
-                    # ✅ COMPONENTE BODY con parámetro para {{1}}
-                    {
-                        "type": "body",
-                        "parameters": [{
-                            "type": "text", 
-                            "text": otp_code  # Esto reemplaza {{1}} en "*{{1}}* es tu código..."
-                        }]
-                    },
-                    # ✅ COMPONENTE BUTTON con parámetro para la URL
-                    {
-                        "type": "button",
-                        "sub_type": "url",
-                        "index": "0",  # ← IMPORTANTE: Como string "0", no número 0
-                        "parameters": [{
-                            "type": "text",
-                            "text": otp_code  # Esto reemplaza {{1}} en "...code=otp{{1}}"
-                        }]
-                    }
-                ]
+        # 🔥 PAYLOAD INTELIGENTE SEGÚN TEMPLATE
+        if template_name == "hello_world":
+            # hello_world: Sin parámetros, language en_US
+            payload = {
+                "messaging_product": "whatsapp",
+                "to": clean_phone,
+                "type": "template",
+                "template": {
+                    "name": template_name,
+                    "language": {"code": "en_US"}
+                    # SIN components - hello_world tiene texto fijo
+                }
             }
-        }
+            print(f"🔥 [WhatsApp] Using HELLO_WORLD payload (no components)")
+            
+        elif template_name in ["otp_login", "otp_tijzi", "otp_login_whatsapp"]:
+            # Templates OTP: Con body y button components
+            payload = {
+                "messaging_product": "whatsapp",
+                "to": clean_phone,
+                "type": "template",
+                "template": {
+                    "name": template_name,
+                    "language": {"code": "es" if template_name != "otp_tijzi_login" else "es_CO"},
+                    "components": [
+                        {
+                            "type": "body",
+                            "parameters": [{
+                                "type": "text", 
+                                "text": otp_code
+                            }]
+                        },
+                        {
+                            "type": "button",
+                            "sub_type": "url",
+                            "index": "0",
+                            "parameters": [{
+                                "type": "text",
+                                "text": otp_code
+                            }]
+                        }
+                    ]
+                }
+            }
+            print(f"🔥 [WhatsApp] Using OTP payload with components")
+            
+        else:
+            # Template desconocido - usar estructura básica
+            payload = {
+                "messaging_product": "whatsapp",
+                "to": clean_phone,
+                "type": "template",
+                "template": {
+                    "name": template_name,
+                    "language": {"code": "es"}
+                }
+            }
+            print(f"🔥 [WhatsApp] Using basic payload for unknown template")
 
-        print(f"🔥 [WhatsApp] CORRECTED Payload: {payload}")
         print(f"🔥 [WhatsApp] Sending to: {clean_phone}")
-        print(f"🔥 [WhatsApp] Code: {otp_code}")
-        print(f"🔥 [WhatsApp] URL: {base_url}")
-        print(f"🔥 [WhatsApp] Simplified Payload: {payload}")
+        print(f"🔥 [WhatsApp] Final Payload: {payload}")
         
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -100,7 +121,7 @@ async def send_whatsapp_otp(phone_number: str, otp_code: str) -> bool:
     except Exception as e:
         print(f"🔥 [WhatsApp EXCEPTION] {str(e)}")
         return False
-    
+
 @auth_router.post("/send-code")
 async def send_code(request: dict):
     """
