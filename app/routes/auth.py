@@ -260,7 +260,7 @@ async def debug_whatsapp_call(request: dict):
             }
         
         # URL y headers
-        base_url = f"https://graph.facebook.com/v19.0/{phone_number_id}/messages"
+        base_url = f"https://graph.facebook.com/v22.0/{phone_number_id}/messages"
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json"
@@ -413,7 +413,7 @@ async def debug_with_logs(request: dict):
             }
         
         # Preparar datos
-        base_url = f"https://graph.facebook.com/v19.0/{phone_number_id}/messages"
+        base_url = f"https://graph.facebook.com/v22.0/{phone_number_id}/messages"
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json"
@@ -513,7 +513,7 @@ async def test_correct_structure(request: dict):
             return {"error": "Missing credentials"}
         
         # Preparar datos
-        base_url = f"https://graph.facebook.com/v19.0/{phone_number_id}/messages"
+        base_url = f"https://graph.facebook.com/v22.0/{phone_number_id}/messages"
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json"
