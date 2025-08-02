@@ -352,37 +352,46 @@ def sms_debug():
 # PASO 1: AÑADIR AL FINAL DE auth.py
 # Configuración de idiomas soportados
 # ==========================================
+# ==========================================
+# MENSAJES SMS OPTIMIZADOS PARA AUTO-DETECCIÓN
+# Reemplazar en tu diccionario SUPPORTED_LANGUAGES
+# ==========================================
 
 SUPPORTED_LANGUAGES = {
     "es": {
         "name": "Español",
         "whatsapp_template": "otp_tijzi_es",
-        "whatsapp_language_code": "es",  # ✅ Funciona
-        "sms_message": "Tu código de verificación Tijzi es: {code}. Válido por 5 minutos. No compartas este código."
+        "whatsapp_language_code": "es",
+        # ✅ FORMATO OPTIMIZADO - código al inicio + palabra clave
+        "sms_message": "{code} es tu código de verificación de Tijzi. Válido por 5 minutos."
     },
     "en": {
         "name": "English", 
         "whatsapp_template": "otp_tijzi_en",
-        "whatsapp_language_code": "en",  # 🔄 CAMBIO: era "en_US"
-        "sms_message": "Your Tijzi verification code is: {code}. Valid for 5 minutes. Do not share this code."
+        "whatsapp_language_code": "en",
+        # ✅ FORMATO OPTIMIZADO - formato que iOS/Android reconocen
+        "sms_message": "{code} is your Tijzi verification code. Valid for 5 minutes."
     },
     "pt": {
         "name": "Português",
         "whatsapp_template": "otp_tijzi_pt", 
-        "whatsapp_language_code": "pt_BR",  # 🔄 CAMBIO: era "pt_BR"
-        "sms_message": "Seu código de verificação Tijzi é: {code}. Válido por 5 minutos. Não compartilhe este código."
+        "whatsapp_language_code": "pt_BR",
+        # ✅ FORMATO OPTIMIZADO
+        "sms_message": "{code} é seu código de verificação Tijzi. Válido por 5 minutos."
     },
     "it": {
         "name": "Italiano",
         "whatsapp_template": "otp_tijzi_it",
-        "whatsapp_language_code": "it",  # ✅ Probablemente correcto
-        "sms_message": "Il tuo codice di verifica Tijzi è: {code}. Valido per 5 minuti. Non condividere questo codice."
+        "whatsapp_language_code": "it",
+        # ✅ FORMATO OPTIMIZADO
+        "sms_message": "{code} è il tuo codice di verifica Tijzi. Valido per 5 minuti."
     },
     "fr": {
         "name": "Français",
         "whatsapp_template": "otp_tijzi_fr",
-        "whatsapp_language_code": "fr",  # ✅ Probablemente correcto
-        "sms_message": "Votre code de vérification Tijzi est: {code}. Valide pendant 5 minutes. Ne partagez pas ce code."
+        "whatsapp_language_code": "fr",
+        # ✅ FORMATO OPTIMIZADO
+        "sms_message": "{code} est votre code de vérification Tijzi. Valide 5 minutes."
     }
 }
 
