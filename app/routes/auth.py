@@ -483,7 +483,7 @@ SUPPORTED_LANGUAGES = {
     "pt": {
         "name": "Português",
         "whatsapp_template": "otp_tijzi_pt", 
-        "whatsapp_language_code": "pt",  # 🔄 CAMBIO: era "pt_BR"
+        "whatsapp_language_code": "pt_BR",  # 🔄 CAMBIO: era "pt_BR"
         "sms_message": "Seu código de verificação Tijzi é: {code}. Válido por 5 minutos. Não compartilhe este código."
     },
     "it": {
