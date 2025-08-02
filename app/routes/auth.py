@@ -42,27 +42,38 @@ async def send_whatsapp_otp(phone_number: str, otp_code: str) -> bool:
         # Limpiar número de teléfono (remover +)
         clean_phone = phone_number.replace("+", "")
         
-        # 🔥 PAYLOAD SIMPLIFICADO - SOLO BODY, SIN BOTÓN
+        # 🔥 PAYLOAD CORRECTO para template "otp_login" según documentación oficial
         payload = {
             "messaging_product": "whatsapp",
             "to": clean_phone,
             "type": "template",
             "template": {
-                "name": template_name,
+                "name": template_name,  # "otp_login"
                 "language": {"code": "es"}, 
                 "components": [
+                    # ✅ COMPONENTE BODY con parámetro para {{1}}
                     {
                         "type": "body",
                         "parameters": [{
                             "type": "text", 
-                            "text": otp_code
+                            "text": otp_code  # Esto reemplaza {{1}} en "*{{1}}* es tu código..."
+                        }]
+                    },
+                    # ✅ COMPONENTE BUTTON con parámetro para la URL
+                    {
+                        "type": "button",
+                        "sub_type": "url",
+                        "index": "0",  # ← IMPORTANTE: Como string "0", no número 0
+                        "parameters": [{
+                            "type": "text",
+                            "text": otp_code  # Esto reemplaza {{1}} en "...code=otp{{1}}"
                         }]
                     }
-                    # 🔥 SIN COPY CODE BUTTON POR AHORA
                 ]
             }
         }
 
+        print(f"🔥 [WhatsApp] CORRECTED Payload: {payload}")
         print(f"🔥 [WhatsApp] Sending to: {clean_phone}")
         print(f"🔥 [WhatsApp] Code: {otp_code}")
         print(f"🔥 [WhatsApp] URL: {base_url}")
@@ -457,4 +468,108 @@ async def debug_with_logs(request: dict):
             "exception": str(e),
             "exception_type": type(e).__name__,
             "logs": logs
+        }
+
+# AÑADIR ESTE ENDPOINT TEMPORAL a app/routes/auth.py
+
+@auth_router.post("/test-correct-structure")
+async def test_correct_structure(request: dict):
+    """
+    Test con la estructura CORRECTA según documentación oficial
+    """
+    try:
+        country_code = request.get("countryCode", "+57")
+        phone_number = request.get("phoneNumber", "3054401383")
+        full_phone_number = country_code + phone_number
+        test_code = "888999"  # Código de prueba
+        
+        # Credenciales
+        access_token = os.getenv("ACCESS_TOKEN")
+        phone_number_id = os.getenv("PHONE_NUMBER_ID")
+        template_name = os.getenv("TEMPLATE_NAME", "otp_login")
+        
+        if not access_token or not phone_number_id:
+            return {"error": "Missing credentials"}
+        
+        # Preparar datos
+        base_url = f"https://graph.facebook.com/v19.0/{phone_number_id}/messages"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+        
+        clean_phone = full_phone_number.replace("+", "")
+        
+        # 🔥 PAYLOAD CORRECTO según documentación oficial
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": clean_phone,
+            "type": "template",
+            "template": {
+                "name": template_name,  # "otp_login"
+                "language": {"code": "es"}, 
+                "components": [
+                    # ✅ COMPONENTE BODY
+                    {
+                        "type": "body",
+                        "parameters": [{
+                            "type": "text", 
+                            "text": test_code
+                        }]
+                    },
+                    # ✅ COMPONENTE BUTTON 
+                    {
+                        "type": "button",
+                        "sub_type": "url",
+                        "index": "0",  # ← Como string
+                        "parameters": [{
+                            "type": "text",
+                            "text": test_code
+                        }]
+                    }
+                ]
+            }
+        }
+        
+        print(f"🔥 [CORRECTED] Template: {template_name}")
+        print(f"🔥 [CORRECTED] Test code: {test_code}")
+        print(f"🔥 [CORRECTED] Payload: {payload}")
+        
+        # Hacer llamada
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                base_url,
+                json=payload,
+                headers=headers,
+                timeout=30.0
+            )
+            
+            print(f"🔥 [CORRECTED] Status: {response.status_code}")
+            print(f"🔥 [CORRECTED] Response: {response.text}")
+            
+            try:
+                response_json = response.json()
+            except:
+                response_json = {"raw": response.text}
+            
+            return {
+                "test_type": "CORRECTED structure per official docs",
+                "template": template_name,
+                "test_code": test_code,
+                "status_code": response.status_code,
+                "success": response.status_code == 200,
+                "facebook_response": response_json,
+                "payload_used": payload,
+                "key_changes": [
+                    "Added body component with parameters",
+                    "Added button component with correct structure", 
+                    'Used index: "0" as string not number',
+                    "Both body and button use same OTP code"
+                ]
+            }
+            
+    except Exception as e:
+        return {
+            "error": str(e),
+            "test_type": "CORRECTED structure"
         }
