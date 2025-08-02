@@ -310,3 +310,38 @@ async def debug_whatsapp_call(request: dict):
             "exception_message": str(e),
             "exception_type": type(e).__name__
         }
+    
+# AÑADIR ESTE ENDPOINT a app/routes/auth.py
+@auth_router.post("/debug-real-function")
+async def debug_real_function(request: dict):
+    """
+    Debug que usa la MISMA función send_whatsapp_otp que usa /auth/send-code
+    """
+    try:
+        country_code = request.get("countryCode", "+57")
+        phone_number = request.get("phoneNumber", "3054401383")
+        
+        # Combinar código de país + número
+        full_phone_number = country_code + phone_number
+        test_code = "999888"  # Código de prueba diferente
+        
+        print(f"🔥 [DEBUG REAL] Testing with: {full_phone_number}")
+        print(f"🔥 [DEBUG REAL] Test code: {test_code}")
+        
+        # 🔥 USAR LA MISMA FUNCIÓN QUE USA /auth/send-code
+        success = await send_whatsapp_otp(full_phone_number, test_code)
+        
+        return {
+            "test_type": "Using REAL send_whatsapp_otp function",
+            "full_phone_number": full_phone_number,
+            "test_code": test_code,
+            "function_returned": success,
+            "message": "SUCCESS: Function returned True" if success else "FAILED: Function returned False"
+        }
+        
+    except Exception as e:
+        return {
+            "error": "Exception in debug",
+            "exception": str(e),
+            "type": type(e).__name__
+        }
