@@ -1,13 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from app.services.otp_service import OTPService
 from app.services.sms_service import SMSService
-from app.services.telegram_service import TelegramService
 import httpx
 import os
-
-
-# Instancia del servicio Telegram
-telegram_service = TelegramService()
 
 # Router para endpoints de autenticación
 auth_router = APIRouter(prefix="/auth", tags=["authentication"])
