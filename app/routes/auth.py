@@ -205,3 +205,114 @@ def debug_config():
             if key in ["ACCESS_TOKEN", "PHONE_NUMBER_ID", "TEMPLATE_NAME"]
         }
     }
+
+# AÑADIR ESTE ENDPOINT TEMPORAL a app/routes/auth.py
+
+@auth_router.post("/debug-whatsapp-call")
+async def debug_whatsapp_call(request: dict):
+    """
+    Endpoint de debug para ver exactamente qué responde Facebook/WhatsApp
+    """
+    try:
+        country_code = request.get("countryCode", "+57")
+        phone_number = request.get("phoneNumber", "3054401383")
+        
+        # Obtener credenciales
+        access_token = os.getenv("ACCESS_TOKEN")
+        phone_number_id = os.getenv("PHONE_NUMBER_ID")
+        template_name = os.getenv("TEMPLATE_NAME", "otp_login_whatsapp")
+        
+        print(f"🔥 [DEBUG] Using ACCESS_TOKEN length: {len(access_token) if access_token else 0}")
+        print(f"🔥 [DEBUG] Using PHONE_NUMBER_ID: {phone_number_id}")
+        print(f"🔥 [DEBUG] Using TEMPLATE_NAME: {template_name}")
+        
+        if not access_token or not phone_number_id:
+            return {
+                "error": "Missing credentials",
+                "access_token_present": bool(access_token),
+                "phone_number_id_present": bool(phone_number_id)
+            }
+        
+        # URL y headers
+        base_url = f"https://graph.facebook.com/v19.0/{phone_number_id}/messages"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+        
+        # Payload
+        clean_phone = (country_code + phone_number).replace("+", "")
+        test_code = "123456"  # Código de prueba
+        
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": clean_phone,
+            "type": "template",
+            "template": {
+                "name": template_name,
+                "language": {"code": "es"}, 
+                "components": [
+                    {
+                        "type": "body",
+                        "parameters": [{
+                            "type": "text", 
+                            "text": test_code
+                        }]
+                    },
+                    {
+                        "type": "button",
+                        "sub_type": "copy_code",
+                        "index": "0",
+                        "parameters": [{
+                            "type": "copy_code",
+                            "copy_code": test_code
+                        }]
+                    }
+                ]
+            }
+        }
+        
+        print(f"🔥 [DEBUG] Sending to: {clean_phone}")
+        print(f"🔥 [DEBUG] URL: {base_url}")
+        print(f"🔥 [DEBUG] Payload: {payload}")
+        
+        # Hacer la llamada real a Facebook
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                base_url,
+                json=payload,
+                headers=headers,
+                timeout=30.0
+            )
+            
+            print(f"🔥 [DEBUG] Facebook Status: {response.status_code}")
+            print(f"🔥 [DEBUG] Facebook Response: {response.text}")
+            
+            # Parsear respuesta
+            try:
+                response_json = response.json()
+            except:
+                response_json = {"raw_text": response.text}
+            
+            return {
+                "status_code": response.status_code,
+                "success": response.status_code == 200,
+                "facebook_response": response_json,
+                "request_details": {
+                    "url": base_url,
+                    "to_number": clean_phone,
+                    "template": template_name,
+                    "payload": payload
+                },
+                "headers_used": {
+                    "authorization_length": len(headers["Authorization"]),
+                    "content_type": headers["Content-Type"]
+                }
+            }
+            
+    except Exception as e:
+        return {
+            "error": "Exception occurred",
+            "exception_message": str(e),
+            "exception_type": type(e).__name__
+        }
