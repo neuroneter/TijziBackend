@@ -345,3 +345,116 @@ async def debug_real_function(request: dict):
             "exception": str(e),
             "type": type(e).__name__
         }
+    
+# AÑADIR ESTE ENDPOINT a app/routes/auth.py
+@auth_router.post("/debug-with-logs")
+async def debug_with_logs(request: dict):
+    """
+    Debug que captura TODOS los logs y respuestas internas
+    """
+    logs = []
+    
+    try:
+        country_code = request.get("countryCode", "+57")
+        phone_number = request.get("phoneNumber", "3054401383")
+        full_phone_number = country_code + phone_number
+        test_code = "777666"
+        
+        logs.append(f"🔥 Starting debug for: {full_phone_number}")
+        
+        # Obtener credenciales
+        access_token = os.getenv("ACCESS_TOKEN")
+        phone_number_id = os.getenv("PHONE_NUMBER_ID")
+        template_name = os.getenv("TEMPLATE_NAME", "otp_login_whatsapp")
+        
+        logs.append(f"🔥 ACCESS_TOKEN length: {len(access_token) if access_token else 0}")
+        logs.append(f"🔥 PHONE_NUMBER_ID: {phone_number_id}")
+        logs.append(f"🔥 TEMPLATE_NAME: {template_name}")
+        
+        if not access_token or not phone_number_id:
+            logs.append("🔥 ERROR: Missing credentials")
+            return {
+                "status": "FAILED - Missing credentials",
+                "access_token_present": bool(access_token),
+                "phone_number_id_present": bool(phone_number_id),
+                "logs": logs
+            }
+        
+        # Preparar datos
+        base_url = f"https://graph.facebook.com/v19.0/{phone_number_id}/messages"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+        
+        clean_phone = full_phone_number.replace("+", "")
+        
+        # 🔥 PAYLOAD SIMPLIFICADO CONFIRMADO
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": clean_phone,
+            "type": "template",
+            "template": {
+                "name": template_name,
+                "language": {"code": "es"}, 
+                "components": [
+                    {
+                        "type": "body",
+                        "parameters": [{
+                            "type": "text", 
+                            "text": test_code
+                        }]
+                    }
+                    # 🔥 CONFIRMADO: SIN COPY CODE BUTTON
+                ]
+            }
+        }
+        
+        logs.append(f"🔥 Clean phone: {clean_phone}")
+        logs.append(f"🔥 URL: {base_url}")
+        logs.append(f"🔥 Payload: {payload}")
+        
+        # Hacer llamada HTTP
+        logs.append("🔥 Making HTTP request to Facebook...")
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                base_url,
+                json=payload,
+                headers=headers,
+                timeout=30.0
+            )
+            
+            logs.append(f"🔥 HTTP Status: {response.status_code}")
+            logs.append(f"🔥 HTTP Response: {response.text}")
+            
+            # Parsear respuesta
+            try:
+                response_json = response.json()
+            except:
+                response_json = {"raw_response": response.text}
+            
+            success = response.status_code == 200
+            logs.append(f"🔥 Success: {success}")
+            
+            return {
+                "status": "SUCCESS" if success else "FAILED",
+                "http_status_code": response.status_code,
+                "facebook_response": response_json,
+                "function_would_return": success,
+                "request_details": {
+                    "url": base_url,
+                    "clean_phone": clean_phone,
+                    "payload": payload
+                },
+                "logs": logs
+            }
+            
+    except Exception as e:
+        logs.append(f"🔥 EXCEPTION: {str(e)}")
+        return {
+            "status": "EXCEPTION",
+            "exception": str(e),
+            "exception_type": type(e).__name__,
+            "logs": logs
+        }
