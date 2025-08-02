@@ -461,3 +461,267 @@ async def telegram_debug():
             "Bot must have TELEGRAM_BOT_TOKEN configured"
         ]
     }
+
+# ==========================================
+# PASO 1: AÑADIR AL FINAL DE auth.py
+# Configuración de idiomas soportados
+# ==========================================
+
+SUPPORTED_LANGUAGES = {
+    "es": {
+        "name": "Español",
+        "whatsapp_template": "otp_tijzi_es",
+        "whatsapp_language_code": "es",
+        "sms_message": "Tu código de verificación Tijzi es: {code}. Válido por 5 minutos. No compartas este código."
+    },
+    "en": {
+        "name": "English", 
+        "whatsapp_template": "otp_tijzi_en",
+        "whatsapp_language_code": "en_US",
+        "sms_message": "Your Tijzi verification code is: {code}. Valid for 5 minutes. Do not share this code."
+    },
+    "pt": {
+        "name": "Português",
+        "whatsapp_template": "otp_tijzi_pt", 
+        "whatsapp_language_code": "pt_BR",
+        "sms_message": "Seu código de verificação Tijzi é: {code}. Válido por 5 minutos. Não compartilhe este código."
+    },
+    "it": {
+        "name": "Italiano",
+        "whatsapp_template": "otp_tijzi_it",
+        "whatsapp_language_code": "it",
+        "sms_message": "Il tuo codice di verifica Tijzi è: {code}. Valido per 5 minuti. Non condividere questo codice."
+    },
+    "fr": {
+        "name": "Français",
+        "whatsapp_template": "otp_tijzi_fr",
+        "whatsapp_language_code": "fr",
+        "sms_message": "Votre code de vérification Tijzi est: {code}. Valide pendant 5 minutes. Ne partagez pas ce code."
+    }
+}
+
+# ==========================================
+# PASO 2: AÑADIR DESPUÉS DEL PASO 1
+# Función WhatsApp multi-idioma
+# ==========================================
+
+async def send_whatsapp_otp_multilingual(phone_number: str, otp_code: str, language: str) -> bool:
+    """
+    Envía código OTP vía WhatsApp con template según idioma
+    """
+    try:
+        # Verificar idioma soportado
+        if language not in SUPPORTED_LANGUAGES:
+            print(f"🔥 [WhatsApp ERROR] Unsupported language: {language}")
+            return False
+        
+        lang_config = SUPPORTED_LANGUAGES[language]
+        
+        # Obtener credenciales
+        access_token = os.getenv("ACCESS_TOKEN")
+        phone_number_id = os.getenv("PHONE_NUMBER_ID")
+        template_name = lang_config["whatsapp_template"]
+        language_code = lang_config["whatsapp_language_code"]
+        
+        print(f"🔥 [WhatsApp] Language: {language} ({lang_config['name']})")
+        print(f"🔥 [WhatsApp] Template: {template_name}")
+        print(f"🔥 [WhatsApp] Language Code: {language_code}")
+        
+        if not access_token or not phone_number_id:
+            print("🔥 [WhatsApp ERROR] Missing credentials")
+            return False
+        
+        # URL para WhatsApp API
+        base_url = f"https://graph.facebook.com/v22.0/{phone_number_id}/messages"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+        
+        # Limpiar número de teléfono
+        clean_phone = phone_number.replace("+", "")
+        
+        # Payload con template específico del idioma
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": clean_phone,
+            "type": "template",
+            "template": {
+                "name": template_name,
+                "language": {"code": language_code},
+                "components": [
+                    {
+                        "type": "body",
+                        "parameters": [{
+                            "type": "text", 
+                            "text": otp_code
+                        }]
+                    },
+                    {
+                        "type": "button",
+                        "sub_type": "url",
+                        "index": "0",
+                        "parameters": [{
+                            "type": "text",
+                            "text": otp_code
+                        }]
+                    }
+                ]
+            }
+        }
+        
+        print(f"🔥 [WhatsApp] Sending to: {clean_phone}")
+        
+        # Enviar mensaje
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                base_url,
+                json=payload,
+                headers=headers,
+                timeout=30.0
+            )
+            
+            print(f"🔥 [WhatsApp] Status: {response.status_code}")
+            print(f"🔥 [WhatsApp] Response: {response.text}")
+            
+            if response.status_code == 200:
+                print(f"🔥 [WhatsApp SUCCESS] Message sent in {language} to {phone_number}")
+                return True
+            else:
+                print(f"🔥 [WhatsApp ERROR] Failed with status {response.status_code}")
+                return False
+                
+    except Exception as e:
+        print(f"🔥 [WhatsApp EXCEPTION] {str(e)}")
+        return False
+
+# ==========================================
+# PASO 3: AÑADIR DESPUÉS DEL PASO 2
+# Endpoint multi-idioma
+# ==========================================
+
+@auth_router.post("/send-otp-multilingual")
+async def send_otp_multilingual(request: dict):
+    """
+    Sistema OTP multi-idioma - WhatsApp + SMS
+    
+    Body: {
+        "channel": "whatsapp|sms",
+        "countryCode": "+57", 
+        "phoneNumber": "3004051582",
+        "language": "es|en|pt|it|fr"
+    }
+    """
+    try:
+        # Obtener parámetros
+        channel = request.get("channel", "whatsapp").lower()
+        country_code = request.get("countryCode")
+        phone_number = request.get("phoneNumber")
+        language = request.get("language", "es").lower()
+        
+        # Validaciones
+        if not all([country_code, phone_number, language]):
+            raise HTTPException(
+                status_code=400,
+                detail="countryCode, phoneNumber and language are required"
+            )
+        
+        if channel not in ["whatsapp", "sms"]:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid channel. Options: whatsapp, sms"
+            )
+        
+        if language not in SUPPORTED_LANGUAGES:
+            supported = ", ".join(SUPPORTED_LANGUAGES.keys())
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid language. Supported: {supported}"
+            )
+        
+        full_phone_number = country_code + phone_number
+        lang_config = SUPPORTED_LANGUAGES[language]
+        
+        print(f"🔥 [OTP Multi] Channel: {channel}, Language: {language} ({lang_config['name']}), Phone: {full_phone_number}")
+        
+        # === WHATSAPP MULTI-IDIOMA ===
+        if channel == "whatsapp":
+            if not (os.getenv("ACCESS_TOKEN") and os.getenv("PHONE_NUMBER_ID")):
+                raise HTTPException(status_code=503, detail="WhatsApp service not configured")
+            
+            # Generar código
+            code = otp_service.generate_and_store_code(full_phone_number)
+            
+            # Enviar con template específico del idioma
+            success = await send_whatsapp_otp_multilingual(full_phone_number, code, language)
+            
+            if not success:
+                raise HTTPException(status_code=500, detail=f"Failed to send WhatsApp message in {language}")
+            
+            return {
+                "success": True,
+                "message": "OTP sent successfully",
+                "channel": "whatsapp",
+                "language": language,
+                "language_name": lang_config["name"],
+                "template": lang_config["whatsapp_template"],
+                "recipient": full_phone_number,
+                "expires_in": "5 minutes"
+            }
+        
+        # === SMS MULTI-IDIOMA ===
+        elif channel == "sms":
+            if not sms_service.is_configured():
+                raise HTTPException(status_code=503, detail="SMS service not configured")
+            
+            # Para SMS, usar Twilio Verify normal (no personaliza mensaje por idioma)
+            result = await sms_service.send_verification_code(full_phone_number)
+            
+            if not result["success"]:
+                raise HTTPException(status_code=500, detail=f"Failed to send SMS: {result.get('error')}")
+            
+            return {
+                "success": True,
+                "message": "OTP sent successfully",
+                "channel": "sms",
+                "language": language,
+                "language_name": lang_config["name"],
+                "recipient": "***" + full_phone_number[-4:],
+                "status": result.get("status"),
+                "expires_in": "5 minutes",
+                "note": "SMS uses Twilio Verify standard message"
+            }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"🔥 [OTP Multi ERROR] {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@auth_router.get("/supported-languages")
+def get_supported_languages():
+    """
+    Lista de idiomas soportados para OTP
+    """
+    languages = []
+    
+    for code, config in SUPPORTED_LANGUAGES.items():
+        languages.append({
+            "code": code,
+            "name": config["name"],
+            "whatsapp_template": config["whatsapp_template"],
+            "whatsapp_language_code": config["whatsapp_language_code"],
+            "sms_sample": config["sms_message"].replace("{code}", "123456")
+        })
+    
+    return {
+        "supported_languages": languages,
+        "total_languages": len(languages),
+        "default_language": "es",
+        "channels": ["whatsapp", "sms"],
+        "notes": [
+            "WhatsApp requires specific templates for each language",
+            "SMS messages use Twilio Verify standard format",
+            "All languages support both WhatsApp and SMS channels"
+        ]
+    }
