@@ -9,16 +9,17 @@ auth_router = APIRouter(prefix="/auth", tags=["authentication"])
 # Instancia del servicio OTP
 otp_service = OTPService()
 
-# 🔥 WHATSAPP SERVICE INLINE - Evitamos import problemático
+# REEMPLAZA la función send_whatsapp_otp en app/routes/auth.py
 async def send_whatsapp_otp(phone_number: str, otp_code: str) -> bool:
     """
     Función standalone para enviar OTP vía WhatsApp
+    VERSIÓN SIMPLIFICADA - Sin Copy Code Button
     """
     try:
         # Obtener credenciales de variables de entorno
         access_token = os.getenv("ACCESS_TOKEN")
         phone_number_id = os.getenv("PHONE_NUMBER_ID")
-        template_name = os.getenv("TEMPLATE_NAME", "otp_login")
+        template_name = os.getenv("TEMPLATE_NAME", "otp_login_whatsapp")
         
         print(f"🔥 [WhatsApp] Access Token Length: {len(access_token) if access_token else 0}")
         print(f"🔥 [WhatsApp] Phone Number ID: {phone_number_id}")
@@ -41,7 +42,7 @@ async def send_whatsapp_otp(phone_number: str, otp_code: str) -> bool:
         # Limpiar número de teléfono (remover +)
         clean_phone = phone_number.replace("+", "")
         
-        # Payload para WhatsApp
+        # 🔥 PAYLOAD SIMPLIFICADO - SOLO BODY, SIN BOTÓN
         payload = {
             "messaging_product": "whatsapp",
             "to": clean_phone,
@@ -56,16 +57,8 @@ async def send_whatsapp_otp(phone_number: str, otp_code: str) -> bool:
                             "type": "text", 
                             "text": otp_code
                         }]
-                    },
-                    {
-                        "type": "button",
-                        "sub_type": "copy_code",
-                        "index": "0",
-                        "parameters": [{
-                            "type": "copy_code",
-                            "copy_code": otp_code
-                        }]
                     }
+                    # 🔥 SIN COPY CODE BUTTON POR AHORA
                 ]
             }
         }
@@ -73,6 +66,7 @@ async def send_whatsapp_otp(phone_number: str, otp_code: str) -> bool:
         print(f"🔥 [WhatsApp] Sending to: {clean_phone}")
         print(f"🔥 [WhatsApp] Code: {otp_code}")
         print(f"🔥 [WhatsApp] URL: {base_url}")
+        print(f"🔥 [WhatsApp] Simplified Payload: {payload}")
         
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -95,7 +89,7 @@ async def send_whatsapp_otp(phone_number: str, otp_code: str) -> bool:
     except Exception as e:
         print(f"🔥 [WhatsApp EXCEPTION] {str(e)}")
         return False
-
+    
 @auth_router.post("/send-code")
 async def send_code(request: dict):
     """
